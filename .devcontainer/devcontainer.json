@@ -17,7 +17,9 @@
 		"vscode": {
 			"extensions": [
 				"GitHub.copilot",
-				"ms-python.python"
+				"ms-python.python",
+				"ms-toolsai.jupyter",
+				"george-alisson.html-preview-vscode"
 			]
 		}
 	},

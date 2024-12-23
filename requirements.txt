@@ -1,2 +1,3 @@
 Jinja2
-markdown
+mistune==3.0.2
+jupyter
