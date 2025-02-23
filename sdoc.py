@@ -36,15 +36,16 @@ class Block:
         context = self.get_context()
         return template.render(context)
     
-    def _add_hook(self, parent):
+    def add_hook(self, parent):
         pass
 
 
 
 class Document(Block):
-    def __init__(self, title='My Report', destination=None):
+    def __init__(self, title='My Report', destination=None, autosave=False):
         self.title = title
         self.destination = destination
+        self.autosave = autosave
         self._blocks = []
 
     def get_context(self):
@@ -77,11 +78,13 @@ class Document(Block):
             f.write(self.render())
 
     def add_block(self, block):
-        block._add_hook(self)
+        block.add_hook(self)
         self._blocks.append(block)
+        if self.autosave:
+            self.save()
         return block
 
-    def _add_hook(self, parent):
+    def add_hook(self, parent):
         # raise Error because this should never be called on a Document
         raise ValueError('Document cannot be added to another block')
 
@@ -94,11 +97,11 @@ class Document(Block):
     def h3(self, text):
         return self.add_block(H3(text))
 
-    def image(self, url=None, file=None, binary=None):
-        return self.add_block(Image(url=url, file=file, binary=binary))
-
     def markdown(self, text):
         return self.add_block(Markdown(text)) 
+    
+    def mplplot(self, *args, **kwargs):
+        return self.add_block(MplPlot(*args, **kwargs))
 
 
 class H1(Block):
@@ -133,12 +136,30 @@ class Markdown(Block):
     def get_template(self):
         return '{{ html }}'
     
+
+class MplPlot(Block):
+    def __init__(self, plot):
+        import io
+        import base64
+        self.plot = plot
+        with io.BytesIO() as buf:
+            plot.savefig(buf, format='png')
+            buf.seek(0)
+            self.plot_data = base64.b64encode(buf.getvalue()).decode('utf-8')
+
+    def get_template(self):
+        return '<img src="data:image/png;base64,{{ plot }}" />'
+    
+    def get_context(self):
+        return {'plot': self.plot_data}
+
+
     
 class TOC(Block):
     def __init__(self):
         pass 
 
-    def _add_hook(self, parent):
+    def add_hook(self, parent):
         # check to make sure parent is a Document
         if not isinstance(parent, Document):
             raise ValueError('TOC must be added to a Document')
@@ -167,6 +188,38 @@ class TOC(Block):
         '''
     
 
+# Global API --------------------------------------------------------------------------------------
+
+# Example usage:
+# import sdoc
+# sdoc.h1('My Report')
+# sdoc.save('report.html')
+
+_current_document = None
+
+def set_current_document(document):
+    global _current_document
+    _current_document = document
+
+def get_current_document():
+    if _current_document is None:
+        set_current_document(Document())
+    return _current_document
+
+def h1(*args, **kwargs):
+    get_current_document().h1(*args, **kwargs)
+
+def h2(*args, **kwargs):
+    get_current_document().h2(*args, **kwargs)
+
+def h3(*args, **kwargs):
+    get_current_document().h3(*args, **kwargs)
+
+def mplplot(*args, **kwargs):
+    get_current_document().mplplot(*args, **kwargs)
+
+def markdown(*args, **kwargs):
+    get_current_document().markdown(*args, **kwargs)
 
 
 
