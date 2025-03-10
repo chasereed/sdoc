@@ -12,16 +12,24 @@ doc.markdown("""
 """)
 '''
 
-import collections
 import textwrap
-import uuid 
 import jinja2
-import mistune
 import argparse
-import sys
-import numpy as np
-import pandas as pd
 
+
+def register_block(name, block_cls):
+    """Register a block type with Document class and create global function"""
+    def add_method(doc, *args, **kwargs):
+        return doc.add_block(block_cls(*args, **kwargs))
+    
+    def global_method(*args, **kwargs):
+        return get_current_document().add_block(block_cls(*args, **kwargs))
+    
+    # Add method to Document class
+    setattr(Document, name, add_method)
+    
+    # Add global function
+    return global_method
 
 
 class Block:
@@ -33,7 +41,7 @@ class Block:
     
     def get_context(self):
         return self.__dict__
-    
+        
     def render(self):
         template_str = textwrap.dedent(self.get_template())
         template = jinja2.Template(template_str)
@@ -44,9 +52,7 @@ class Block:
         pass
 
 
-
 class Document(Block):
-    # Built-in themes
     THEMES = {
         'default': '''
             body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.5; max-width: 1200px; margin: 0 auto; padding: 2rem; }
@@ -68,6 +74,10 @@ class Document(Block):
             .table-bordered thead th, .table-bordered thead td { border-bottom-width: 2px; }
             .table-striped tbody tr:nth-of-type(odd) { background-color: rgba(0, 0, 0, 0.05); }
             .table-hover tbody tr:hover { color: #212529; background-color: rgba(0, 0, 0, 0.075); }
+            .alert { padding: 1rem; margin: 1rem 0; border-radius: 6px; }
+            .alert-info { background-color: #e3f2fd; color: #0c5460; border: 1px solid #bee5eb; }
+            .alert-warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+            .alert-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
         ''',
         'dark': '''
             body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.5; max-width: 1200px; margin: 0 auto; padding: 2rem; background: #1a1a1a; color: #fff; }
@@ -89,6 +99,10 @@ class Document(Block):
             .table-bordered thead th, .table-bordered thead td { border-bottom-width: 2px; }
             .table-striped tbody tr:nth-of-type(odd) { background-color: rgba(255, 255, 255, 0.05); }
             .table-hover tbody tr:hover { color: #fff; background-color: rgba(255, 255, 255, 0.075); }
+            .alert { padding: 1rem; margin: 1rem 0; border-radius: 6px; }
+            .alert-info { background-color: #1a3f4c; color: #8ed9f6; border: 1px solid #164e63; }
+            .alert-warning { background-color: #4c3a10; color: #fcd34d; border: 1px solid #92400e; }
+            .alert-error { background-color: #4c1d24; color: #fca5a5; border: 1px solid #991b1b; }
         '''
     }
 
@@ -147,55 +161,6 @@ class Document(Block):
         raise ValueError('Document cannot be added to another block')
 
 
-    # New block methods
-    def h1(self, *args, **kwargs):
-        return self.add_block(H1(*args, **kwargs))
-    def h2(self, *args, **kwargs):
-        return self.add_block(H2(*args, **kwargs))
-    def h3(self, *args, **kwargs):
-        return self.add_block(H3(*args, **kwargs))
-    def h4(self, *args, **kwargs):
-        return self.add_block(H4(*args, **kwargs))
-    def h5(self, *args, **kwargs):
-        return self.add_block(H5(*args, **kwargs))
-    def h6(self, *args, **kwargs):
-        return self.add_block(H6(*args, **kwargs))
-    def paragraph(self, *args, **kwargs):
-        return self.add_block(Paragraph(*args, **kwargs))
-    def image(self, *args, **kwargs):
-        return self.add_block(Image(*args, **kwargs))
-    def list(self, *args, **kwargs):
-        return self.add_block(List(*args, **kwargs))
-    def markdown(self, *args, **kwargs):
-        return self.add_block(Markdown(*args, **kwargs))
-    def mplplot(self, *args, **kwargs):
-        return self.add_block(MplPlot(*args, **kwargs))
-    def code(self, *args, **kwargs):
-        return self.add_block(Code(*args, **kwargs))
-    def blockquote(self, *args, **kwargs):
-        return self.add_block(Blockquote(*args, **kwargs))
-    def table(self, *args, **kwargs):
-        return self.add_block(Table(*args, **kwargs))
-    def pandas_table(self, *args, **kwargs):
-        return self.add_block(PandasTable(*args, **kwargs))
-    def row(self, *args, **kwargs):
-        return self.add_block(Row(*args, **kwargs))
-    def col(self, *args, **kwargs):
-        return self.add_block(Col(*args, **kwargs))
-    def card(self, *args, **kwargs):
-        return self.add_block(Card(*args, **kwargs))
-    def divider(self, *args, **kwargs):
-        return self.add_block(Divider(*args, **kwargs))
-    def info(self, *args, **kwargs):
-        return self.add_block(Info(*args, **kwargs))
-    def warning(self, *args, **kwargs):
-        return self.add_block(Warning(*args, **kwargs))
-    def error(self, *args, **kwargs):
-        return self.add_block(Error(*args, **kwargs))
-    def toc(self, *args, **kwargs):
-        return self.add_block(TOC(*args, **kwargs))
-
-
 class H1(Block):
     def __init__(self, text):
         self.text = text
@@ -203,6 +168,15 @@ class H1(Block):
     def get_template(self):
         return '<h1>{{ text }}</h1>'
     
+    def get_styles(self):
+        return '''
+            h1 {
+                margin-top: 0;
+                margin-bottom: 0.5em;
+                font-weight: 600;
+                font-size: 2em;
+            }
+        '''
 
 class H2(Block):
     def __init__(self, text):
@@ -211,7 +185,6 @@ class H2(Block):
     def get_template(self):
         return '<h2>{{ text }}</h2>'
     
-
 class H3(Block):
     def __init__(self, text):
         self.text = text
@@ -219,7 +192,6 @@ class H3(Block):
     def get_template(self):
         return '<h3>{{ text }}</h3>'
     
-
 class H4(Block):
     def __init__(self, text):
         self.text = text
@@ -227,14 +199,12 @@ class H4(Block):
     def get_template(self):
         return '<h4>{{ text }}</h4>'
 
-
 class H5(Block):
     def __init__(self, text):
         self.text = text
 
     def get_template(self):
         return '<h5>{{ text }}</h5>'
-
 
 class H6(Block):
     def __init__(self, text):
@@ -275,6 +245,7 @@ class List(Block):
 
 class Markdown(Block):
     def __init__(self, text):
+        import mistune
         self.text = textwrap.dedent(text)
         self.html = mistune.markdown(self.text)
 
@@ -297,7 +268,6 @@ class MplPlot(Block):
     
     def get_context(self):
         return {'plot': self.plot_data}
-
 
     
 class TOC(Block):
@@ -504,13 +474,7 @@ class Error(Block):
         return '<div class="alert alert-error">{{ content }}</div>'
 
 
-
-# Global API --------------------------------------------------------------------------------------
-
-# Example usage:
-# import sdoc
-# sdoc.h1('My Report')
-# sdoc.save('report.html')
+# -------------------------------------------------------------------------------------------------
 
 _current_document = None
 
@@ -518,62 +482,33 @@ def set_current_document(document):
     global _current_document
     _current_document = document
 
+
 def get_current_document():
     if _current_document is None:
         set_current_document(Document())
     return _current_document
 
-def h1(*args, **kwargs):
-    get_current_document().h1(*args, **kwargs)
-def h2(*args, **kwargs):
-    get_current_document().h2(*args, **kwargs)
-def h3(*args, **kwargs):
-    get_current_document().h3(*args, **kwargs)
-def h4(*args, **kwargs):
-    get_current_document().h4(*args, **kwargs)
-def h5(*args, **kwargs):
-    get_current_document().h5(*args, **kwargs)
-def h6(*args, **kwargs):
-    get_current_document().h6(*args, **kwargs)
-def paragraph(*args, **kwargs):
-    get_current_document().paragraph(*args, **kwargs)
-def image(*args, **kwargs):
-    get_current_document().image(*args, **kwargs)
-def list(*args, **kwargs):
-    get_current_document().list(*args, **kwargs)
-def mplplot(*args, **kwargs):
-    get_current_document().mplplot(*args, **kwargs)
-def markdown(*args, **kwargs):
-    get_current_document().markdown(*args, **kwargs)
-def code(*args, **kwargs):
-    get_current_document().code(*args, **kwargs)
-def blockquote(*args, **kwargs):
-    get_current_document().blockquote(*args, **kwargs)
-def table(*args, **kwargs):
-    get_current_document().table(*args, **kwargs)
-def pandas_table(*args, **kwargs):
-    get_current_document().pandas_table(*args, **kwargs)
-def row(*args, **kwargs):
-    get_current_document().row(*args, **kwargs)
-def col(*args, **kwargs):
-    get_current_document().col(*args, **kwargs)
-def card(*args, **kwargs):
-    get_current_document().card(*args, **kwargs)
-def divider(*args, **kwargs):
-    get_current_document().divider(*args, **kwargs)
-def info(*args, **kwargs):
-    get_current_document().info(*args, **kwargs)
-def warning(*args, **kwargs):
-    get_current_document().warning(*args, **kwargs)
-def error(*args, **kwargs):
-    get_current_document().error(*args, **kwargs)
+
 def save(*args, **kwargs):
     get_current_document().save(*args, **kwargs)
 
+def cli():
+    parser = argparse.ArgumentParser(description='SDoc - Tool for making HTML reports in a script')
+    parser.add_argument('command', choices=['generate-test-doc'], help='Command to execute')
+    parser.add_argument('destination', nargs='?', default='sdoc_test_report.html', 
+                      help='Destination file for the generated document (default: sdoc_test_report.html)')
+    
+    args = parser.parse_args()
+    
+    if args.command == 'generate-test-doc':
+        generate_test_doc(args.destination)
+        print(f'Test document generated at: {args.destination}')
 
 def generate_test_doc(destination='test_report.html'):
-    """Generate a test document showcasing all available block types."""
+    """Generate a test document showcasing all available block types."""    
     doc = Document(title='SDoc Test Document', destination=destination)
+
+    doc.toc()
     
     # Basic blocks
     doc.h1('SDoc Test Document')
@@ -667,13 +602,18 @@ def hello_world():
     )
 
     # Pandas table
-    doc.h2('Pandas Table')
-    df = pd.DataFrame({
-        'A': [1, 2, 3],
-        'B': ['a', 'b', 'c'],
-        'C': [True, False, True]
-    })
-    doc.pandas_table(df)
+    try:
+        import pandas 
+        doc.h2('Pandas Table')
+        df = pandas.DataFrame({
+            'A': [1, 2, 3],
+            'B': ['a', 'b', 'c'],
+            'C': [True, False, True]
+        })
+        doc.pandas_table(df)
+    except ImportError:
+        print('pandas not installed - skipping pandas table example')
+        doc.warning('pandas not installed - skipping pandas table example')
     
     # Alerts
     doc.h2('Alerts')
@@ -699,6 +639,7 @@ def hello_world():
     
     # Plot (if matplotlib is available)
     try:
+        import numpy as np
         import matplotlib.pyplot as plt
         doc.h2('Matplotlib Plot')
         fig, ax = plt.subplots()
@@ -707,22 +648,41 @@ def hello_world():
         doc.mplplot(plt)
         plt.close()
     except ImportError:
-        doc.warning('Matplotlib not available - skipping plot example')
+        print('numpy/matplotlib not installed - skipping plot example')
+        doc.warning('numpy/matplotlib not installed - skipping plot example')
     
     doc.save()
     return doc
 
-def main():
-    parser = argparse.ArgumentParser(description='SDoc - Tool for making HTML reports in a script')
-    parser.add_argument('command', choices=['generate-test-doc'], help='Command to execute')
-    parser.add_argument('destination', nargs='?', default='sdoc_test_report.html', 
-                      help='Destination file for the generated document (default: sdoc_test_report.html)')
-    
-    args = parser.parse_args()
-    
-    if args.command == 'generate-test-doc':
-        generate_test_doc(args.destination)
-        print(f'Test document generated at: {args.destination}')
+# Built-in blocks ---------------------------------------------------------------------------------
+
+h1 = register_block('h1', H1)
+h2 = register_block('h2', H2)
+h3 = register_block('h3', H3)
+h4 = register_block('h4', H4)
+h5 = register_block('h5', H5)
+h6 = register_block('h6', H6)
+paragraph = register_block('paragraph', Paragraph)
+image = register_block('image', Image)
+list = register_block('list', List)
+markdown = register_block('markdown', Markdown)
+mplplot = register_block('mplplot', MplPlot)
+code = register_block('code', Code)
+blockquote = register_block('blockquote', Blockquote)
+table = register_block('table', Table)
+pandas_table = register_block('pandas_table', PandasTable)
+row = register_block('row', Row)
+col = register_block('col', Col)
+card = register_block('card', Card)
+divider = register_block('divider', Divider)
+info = register_block('info', Info)
+warning = register_block('warning', Warning)
+error = register_block('error', Error)
+toc = register_block('toc', TOC)
+
 
 if __name__ == '__main__':
-    main()
+    cli()
+
+
+
