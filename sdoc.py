@@ -571,7 +571,7 @@ def save(*args, **kwargs):
     get_current_document().save(*args, **kwargs)
 
 
-def generate_test_doc(destination='sdoc_test_report.html'):
+def generate_test_doc(destination='test_report.html'):
     """Generate a test document showcasing all available block types."""
     doc = Document(title='SDoc Test Document', destination=destination)
     
