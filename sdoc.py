@@ -17,20 +17,6 @@ import jinja2
 import argparse
 
 
-def register_block(name, block_cls):
-    """Register a block type with Document class and create global function"""
-    def add_method(doc, *args, **kwargs):
-        return doc.add_block(block_cls(*args, **kwargs))
-    
-    def global_method(*args, **kwargs):
-        return get_current_document().add_block(block_cls(*args, **kwargs))
-    
-    # Add method to Document class
-    setattr(Document, name, add_method)
-    
-    # Add global function
-    return global_method
-
 
 class Block:
     def __init__(self):
@@ -384,49 +370,25 @@ class PandasTable(Block):
         return '<div class="pandas-table">{{ html }}</div>'
 
 
-class Row(Block):
-    def __init__(self):
-        self._blocks = []
-
-    def add_block(self, block):
-        block.pre_add_hook(self)
-        self._blocks.append(block)
-        return block
+class Columns(Block):
+    def __init__(self, *blocks):
+        self.blocks = blocks
 
     def get_template(self):
         return '''
         <div class="row">
             {% for block in blocks %}
-                {{ block }}
+                <div class="col">{{ block }}</div>
             {% endfor %}
         </div>
         '''
 
     def get_context(self):
-        return {'blocks': [block.render() for block in self._blocks]}
+        return {'blocks': [block.render() for block in self.blocks]}
 
-
-class Col(Block):
-    def __init__(self):
-        self._blocks = []
-
-    def add_block(self, block):
-        block.pre_add_hook(self)
-        self._blocks.append(block)
-        return block
-
-    def get_template(self):
-        return '''
-        <div class="col">
-            {% for block in blocks %}
-                {{ block }}
-            {% endfor %}
-        </div>
-        '''
-
-    def get_context(self):
-        return {'blocks': [block.render() for block in self._blocks]}
-
+    def pre_add_hook(self, parent):
+        for block in self.blocks:
+            block.pre_add_hook(self)
 
 class Card(Block):
     def __init__(self, title=None, content=None):
@@ -507,6 +469,22 @@ def get_current_document():
 
 def save(*args, **kwargs):
     get_current_document().save(*args, **kwargs)
+
+
+def register_block(name, block_cls):
+    """Register a block type with Document class and create global function"""
+    def add_method(doc, *args, **kwargs):
+        return doc.add_block(block_cls(*args, **kwargs))
+    
+    def global_method(*args, **kwargs):
+        return get_current_document().add_block(block_cls(*args, **kwargs))
+    
+    # Add method to Document class
+    setattr(Document, name, add_method)
+    
+    # Add global function
+    return global_method
+
 
 def cli():
     parser = argparse.ArgumentParser(description='SDoc - Tool for making HTML reports in a script')
@@ -644,11 +622,10 @@ def hello_world():
     
     # Layout
     doc.h2('Layout')
-    row = doc.row()
-    col1 = row.add_block(Col())
-    col1.add_block(Paragraph('Column 1'))
-    col2 = row.add_block(Col())
-    col2.add_block(Paragraph('Column 2'))
+    doc.columns(
+        Paragraph('Column 1'),
+        Paragraph('Column 2')
+    )
     
     # Divider
     doc.divider()
@@ -687,8 +664,7 @@ code = register_block('code', Code)
 blockquote = register_block('blockquote', Blockquote)
 table = register_block('table', Table)
 pandas_table = register_block('pandas_table', PandasTable)
-row = register_block('row', Row)
-col = register_block('col', Col)
+columns = register_block('columns', Columns)
 card = register_block('card', Card)
 divider = register_block('divider', Divider)
 info = register_block('info', Info)
