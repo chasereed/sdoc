@@ -2,3 +2,4 @@
 - move styles to blocks
 - dont make Document a Block
 - use more complex TOC (see notebook)
+- write a table styler

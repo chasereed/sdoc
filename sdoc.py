@@ -56,6 +56,7 @@ class Document(Block):
     THEMES = {
         'default': '''
             body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.5; max-width: 1200px; margin: 0 auto; padding: 2rem; }
+            img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
             .code { background: #f6f8fa; padding: 1rem; border-radius: 6px; font-family: monospace; }
             .blockquote { border-left: 4px solid #ddd; margin: 0; padding-left: 1rem; color: #666; }
             .row { display: flex; gap: 1rem; margin: 1rem 0; }
@@ -81,6 +82,7 @@ class Document(Block):
         ''',
         'dark': '''
             body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.5; max-width: 1200px; margin: 0 auto; padding: 2rem; background: #1a1a1a; color: #fff; }
+            img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
             .code { background: #2d2d2d; padding: 1rem; border-radius: 6px; font-family: monospace; }
             .blockquote { border-left: 4px solid #444; margin: 0; padding-left: 1rem; color: #aaa; }
             .row { display: flex; gap: 1rem; margin: 1rem 0; }
@@ -254,20 +256,34 @@ class Markdown(Block):
     
 
 class MplPlot(Block):
-    def __init__(self, plot):
+    def __init__(self, plot, **savefig_kwargs):
         import io
         import base64
         self.plot = plot
+        
+        # Default savefig options
+        self.savefig_kwargs = {
+            'format': 'png',
+            'dpi': 300,
+            'bbox_inches': 'tight'
+        }
+        # Update with user provided options
+        self.savefig_kwargs.update(savefig_kwargs)
+
         with io.BytesIO() as buf:
-            plot.savefig(buf, format='png')
+            plot.savefig(buf, **self.savefig_kwargs)
             buf.seek(0)
             self.plot_data = base64.b64encode(buf.getvalue()).decode('utf-8')
 
     def get_template(self):
-        return '<img src="data:image/png;base64,{{ plot }}" />'
+        return '''
+            <img class="mplplot" src="data:image/png;base64,{{ plot }}" />
+        '''
     
     def get_context(self):
-        return {'plot': self.plot_data}
+        return {
+            'plot': self.plot_data,
+        }
 
     
 class TOC(Block):
